@@ -449,19 +449,19 @@ async function fillIPOApplication(page, applicationData = {}) {
 }
 
 /**
- * Submit IPO application
+ * Submit IPO application (handles Proceed -> PIN -> Apply flow)
  * @param {import('@playwright/test').Page} page - Playwright page object
  * @returns {Promise<boolean>} - True if submitted, false if button not found
  */
 async function submitIPOApplication(page) {
   await page.waitForTimeout(1000);
   
+  // Step 1: Click Proceed button to go to PIN screen
   const proceedSelectors = [
     'button:has-text("Proceed")',
     'button[type="submit"]:has-text("Proceed")',
     'button.btn-primary:has-text("Proceed")',
     'button:has-text("Submit")',
-    'button:has-text("Apply")',
     'button:has-text("Confirm")',
     'button[type="submit"]',
     'input[type="submit"]',
@@ -469,22 +469,81 @@ async function submitIPOApplication(page) {
     'button.btn-submit',
   ];
   
+  let proceedClicked = false;
   for (const selector of proceedSelectors) {
     try {
       const button = page.locator(selector).first();
       if (await button.isVisible({ timeout: 3000 })) {
         await button.click();
-        await page.waitForTimeout(3000);
-        return true;
+        proceedClicked = true;
+        await page.waitForTimeout(2000);
+        break;
       }
     } catch (e) {
       continue;
     }
   }
   
-  const currentUrl = page.url();
-  if (!currentUrl.includes('asba') && !currentUrl.includes('login')) {
-    return true;
+  if (!proceedClicked) {
+    return false;
+  }
+  
+  // Step 2: Enter transaction PIN
+  const txnPin = process.env.MEROSHARE_TXN_PIN;
+  if (!txnPin) {
+    return false;
+  }
+  
+  const pinInputSelectors = [
+    'input[placeholder="Enter Pin"]',
+    'input[placeholder*="PIN" i]',
+    'input[placeholder*="Pin" i]',
+    'input[type="password"]',
+    'input[type="text"][placeholder*="pin" i]',
+    'input.form-control[type="password"]',
+    'input.form-control[type="text"]',
+  ];
+  
+  let pinEntered = false;
+  for (const selector of pinInputSelectors) {
+    try {
+      const pinInput = page.locator(selector).first();
+      if (await pinInput.isVisible({ timeout: 3000 })) {
+        await pinInput.clear();
+        await pinInput.fill(txnPin);
+        pinEntered = true;
+        await page.waitForTimeout(500);
+        break;
+      }
+    } catch (e) {
+      continue;
+    }
+  }
+  
+  if (!pinEntered) {
+    return false;
+  }
+  
+  // Step 3: Click Apply button to finalize
+  const applySelectors = [
+    'button:has-text("Apply")',
+    'button.btn-primary:has-text("Apply")',
+    'button[type="submit"]:has-text("Apply")',
+    'button.btn-primary',
+    'button[type="submit"]',
+  ];
+  
+  for (const selector of applySelectors) {
+    try {
+      const applyButton = page.locator(selector).first();
+      if (await applyButton.isVisible({ timeout: 3000 })) {
+        await applyButton.click();
+        await page.waitForTimeout(3000);
+        return true;
+      }
+    } catch (e) {
+      continue;
+    }
   }
   
   return false;
