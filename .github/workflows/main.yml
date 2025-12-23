@@ -1,0 +1,44 @@
+name: MeroShare IPO Automation
+
+on:
+  # Run daily at 9:00 AM Nepal Time (UTC+5:45) = 3:15 AM UTC
+  schedule:
+    - cron: '15 3 * * *'  # 9:00 AM NPT (Nepal Time)
+  
+  # Allow manual triggering for testing
+  workflow_dispatch:
+
+jobs:
+  automate:
+    runs-on: ubuntu-latest
+    environment: production  # Requires approval
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      
+      - name: Run MeroShare automation
+        env:
+          MEROSHARE_USERNAME: ${{ secrets.MEROSHARE_USERNAME }}
+          MEROSHARE_PASSWORD: ${{ secrets.MEROSHARE_PASSWORD }}
+          MEROSHARE_DP_NP: ${{ secrets.MEROSHARE_DP_NP }}
+          MEROSHARE_BANK: ${{ secrets.MEROSHARE_BANK }}
+          MEROSHARE_P_ACCOUNT_NO: ${{ secrets.MEROSHARE_P_ACCOUNT_NO }}
+          MEROSHARE_KITTA_N0: ${{ secrets.MEROSHARE_KITTA_N0 }}
+          MEROSHARE_CRN_NO: ${{ secrets.MEROSHARE_CRN_NO }}
+          MEROSHARE_TXN_PIN: ${{ secrets.MEROSHARE_TXN_PIN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: npm run automate
